@@ -1,0 +1,244 @@
+<!--
+  ============================================================================
+  HYBRID SHELL — HTML Template
+  ============================================================================
+
+  CODE ANNOTATION: How this differs from the other approaches
+  =============================================================
+
+  PURE SINGLE-SPA (Single-Spa/root-config/index.ejs):
+    - Uses an EJS template (processed by HtmlWebpackPlugin)
+    - Loads SystemJS from CDN via <script> tags
+    - Includes a <script type="systemjs-importmap"> block mapping app names to URLs
+    - Boots the root-config via System.import('./root-config.js')
+    - Lots of infrastructure in the HTML for the module system
+
+  PURE MODULE FEDERATION (ModuleFederation/host-app/public/index.html):
+    - Plain HTML with just a <div id="root"> mount point
+    - No SystemJS, no import maps — webpack handles everything
+    - Very minimal — all the magic is in webpack.config.js
+
+  HYBRID (this file):
+    - Plain HTML like Module Federation (no SystemJS needed!)
+    - Includes a navigation bar like the Single-Spa root-config
+    - Has a micro-frontend container div for single-spa to mount apps into
+    - Client-side navigation helper for single-spa routing
+    - The simplicity of Module Federation's HTML + the routing UI of Single-Spa
+
+  This is one of the practical benefits of the Hybrid approach: you get rid
+  of SystemJS entirely. No CDN dependency, no import maps to maintain, no
+  SystemJS-specific module format. Module Federation handles all the code
+  loading natively through webpack.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hybrid Micro Frontend Demo (Single-Spa + Module Federation)</title>
+
+  <style>
+    /*
+      CODE ANNOTATION: Shell-owned styles
+      =====================================
+      Same principle as the pure Single-Spa approach: the shell owns only
+      the top-level layout (nav bar, container). Each micro frontend owns
+      its own styles. This prevents the shell from becoming a styling
+      bottleneck.
+    */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+    }
+
+    .shell-nav {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      padding: 0;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .shell-nav__title {
+      color: #00d2ff;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 0 24px;
+      white-space: nowrap;
+    }
+
+    .shell-nav__badge {
+      background: rgba(0, 210, 255, 0.15);
+      color: #00d2ff;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
+      font-weight: 400;
+    }
+
+    .shell-nav__links {
+      display: flex;
+      list-style: none;
+      height: 100%;
+    }
+
+    .shell-nav__link {
+      color: #ccc;
+      text-decoration: none;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      transition: background 0.2s, color 0.2s;
+      font-size: 15px;
+    }
+
+    .shell-nav__link:hover,
+    .shell-nav__link--active {
+      background: rgba(0, 210, 255, 0.1);
+      color: #00d2ff;
+    }
+
+    #micro-frontend-container {
+      max-width: 960px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      min-height: 200px;
+    }
+
+    .shell-welcome {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+
+    .shell-welcome h2 {
+      margin-bottom: 12px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    CODE ANNOTATION: Navigation bar — owned by the shell
+    ======================================================
+    Same architectural decision as the pure Single-Spa approach: the shell
+    owns the nav because it owns the routing. Navigation links trigger
+    client-side route changes that single-spa responds to.
+
+    The onclick handler uses singleSpaNavigate() — a helper that does
+    history.pushState() + dispatches a popstate event to trigger single-spa's
+    reroute logic. This is identical to the pure Single-Spa approach.
+
+    DIFFERENCE FROM PURE MODULE FEDERATION:
+    In the pure MF host app, there's no shell-level navigation because
+    there's no routing framework. Components are just rendered inline.
+    The Hybrid approach adds single-spa's routing on top of MF's loading.
+  -->
+  <nav class="shell-nav" aria-label="Main navigation">
+    <span class="shell-nav__title">
+      Hybrid Shell
+      <span class="shell-nav__badge">Single-Spa + MF</span>
+    </span>
+    <ul class="shell-nav__links">
+      <li>
+        <a class="shell-nav__link" href="/home" onclick="singleSpaNavigate(event)">
+          Home
+        </a>
+      </li>
+      <li>
+        <a class="shell-nav__link" href="/settings" onclick="singleSpaNavigate(event)">
+          Settings
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!--
+    CODE ANNOTATION: Micro frontend mount point
+    =============================================
+    This is where single-spa mounts the active micro frontend. When the URL
+    matches a registered app's activeWhen, single-spa calls mount() and the
+    micro frontend renders into this container.
+
+    This is the same pattern as the pure Single-Spa approach. The difference
+    is HOW the micro frontend code gets loaded:
+      - Pure Single-Spa: SystemJS fetches the bundle via import map URL
+      - Hybrid: Module Federation fetches the code via remoteEntry.js
+
+    But from the DOM's perspective, it's identical — a React component
+    renders into this div, and unmount() cleans it up when navigating away.
+  -->
+  <div id="micro-frontend-container">
+    <!--
+      Default content shown before any micro frontend mounts.
+      Single-Spa will replace this when it mounts the first app.
+    -->
+    <div class="shell-welcome">
+      <h2>Hybrid Micro Frontend Shell</h2>
+      <p>Click a link above to load a micro frontend.</p>
+      <p style="margin-top: 8px; font-size: 13px; color: #999;">
+        Single-Spa handles routing and lifecycle. Module Federation handles code loading.
+      </p>
+    </div>
+  </div>
+
+  <!--
+    CODE ANNOTATION: Client-side navigation helper
+    ================================================
+    Identical to the one in Single-Spa/root-config/index.ejs.
+    Prevents full page reload, uses history.pushState() to update the URL,
+    and dispatches a popstate event to trigger single-spa's reroute logic.
+
+    This is needed because single-spa listens for popstate events to know
+    when the URL has changed. history.pushState() alone doesn't fire popstate,
+    so we dispatch it manually.
+  -->
+  <script>
+    function singleSpaNavigate(event) {
+      event.preventDefault();
+      var href = event.currentTarget.getAttribute('href');
+      history.pushState(null, '', href);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  </script>
+
+  <!--
+    CODE ANNOTATION: Active link highlighting
+    ===========================================
+    Updates the nav bar to show which route is currently active.
+    Listens for single-spa's routing-event which fires after all
+    mount/unmount operations complete.
+  -->
+  <script>
+    function updateActiveNavLink() {
+      var links = document.querySelectorAll('.shell-nav__link');
+      var currentPath = window.location.pathname;
+
+      links.forEach(function(link) {
+        var href = link.getAttribute('href');
+        if (currentPath.startsWith(href)) {
+          link.classList.add('shell-nav__link--active');
+        } else {
+          link.classList.remove('shell-nav__link--active');
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', updateActiveNavLink);
+    window.addEventListener('single-spa:routing-event', updateActiveNavLink);
+  </script>
+</body>
+</html>

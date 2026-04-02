@@ -1,0 +1,24 @@
+{
+  "name": "mf-home",
+  "version": "1.0.0",
+  "description": "Hybrid Home micro frontend — this app has a DUAL NATURE. It is simultaneously a Module Federation remote (exposes modules via webpack's ModuleFederationPlugin) AND a single-spa application (exports bootstrap/mount/unmount lifecycle hooks). The Hybrid shell loads this app's code via Module Federation and manages its lifecycle via single-spa. When running standalone (npm start), it behaves as a normal React app for local development.",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "single-spa-react": "^5.1.4"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.3",
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.3"
+  }
+}

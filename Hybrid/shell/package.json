@@ -1,0 +1,24 @@
+{
+  "name": "hybrid-shell",
+  "version": "1.0.0",
+  "description": "Hybrid shell app — combines Single-Spa for lifecycle orchestration and routing with Module Federation for runtime code loading. This is the 'best of both worlds' approach: Single-Spa decides WHEN to mount/unmount micro frontends, and Module Federation decides HOW to load their code. Think of Single-Spa as the conductor and Module Federation as the delivery truck.",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "single-spa": "^5.9.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "html-webpack-plugin": "^5.5.3",
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.3"
+  }
+}

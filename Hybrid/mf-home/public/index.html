@@ -1,0 +1,33 @@
+<!--
+  ============================================================================
+  HYBRID HOME — Standalone HTML Template
+  ============================================================================
+
+  CODE ANNOTATION: When is this file used?
+  ------------------------------------------
+  ONLY when running this micro frontend standalone (npm start on port 4001).
+
+  When the Hybrid shell consumes this remote via Module Federation, this HTML
+  is never loaded. The shell has its own HTML (Hybrid/shell/public/index.html)
+  and only fetches our remoteEntry.js + the singleSpaEntry module chunk.
+
+  This standalone template exists so the Home team can develop and test their
+  micro frontend independently, without needing the shell running. Just run
+  `npm start` in this directory and open http://localhost:4001.
+
+  COMPARE TO PURE MF REMOTE:
+  Same pattern as ModuleFederation/remote-products/public/index.html — a
+  minimal HTML page with a mount point for standalone development.
+  ============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hybrid Home — Standalone Mode</title>
+</head>
+<body>
+  <div id="root"></div>
+</body>
+</html>
