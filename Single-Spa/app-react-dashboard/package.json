@@ -1,0 +1,23 @@
+{
+  "name": "app-react-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard micro frontend for the Single-Spa architecture. This is the SECOND independently deployable React application in our setup, demonstrating how single-spa orchestrates MULTIPLE micro frontends on the same page. Like app-react-home, it exports single-spa lifecycle hooks and is loaded by the root-config shell via SystemJS. Having two micro frontends is the minimum needed to demonstrate multi-app orchestration — how single-spa decides which app to mount/unmount based on URL routing, how apps share the same DOM container, and how the lifecycle of one app is completely independent of the other.",
+  "scripts": {
+    "start": "webpack serve --mode development --port 8082",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "single-spa-react": "^5.1.4"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.3"
+  }
+}

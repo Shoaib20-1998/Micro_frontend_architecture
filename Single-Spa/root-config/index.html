@@ -1,0 +1,374 @@
+<!--
+  =============================================================================
+  SINGLE-SPA ROOT CONFIG — HTML Template (index.ejs)
+  =============================================================================
+
+  CODE ANNOTATION: Why EJS instead of plain HTML?
+  ================================================
+  We use EJS (Embedded JavaScript) because HtmlWebpackPlugin processes this
+  template at build time. EJS lets us use template syntax to inject
+  dynamic values, though in this simple setup we're mostly writing static HTML.
+  The key reason is that HtmlWebpackPlugin expects a template format it can
+  process, and EJS is its default.
+
+  CODE ANNOTATION: The role of this file
+  =======================================
+  This HTML file is the ENTRY POINT of the entire micro frontend architecture.
+  When a user visits the app, the browser loads this file, which then:
+    1. Loads the SystemJS library from CDN
+    2. Reads the import map to know where each module lives
+    3. Loads the root-config via System.import()
+    4. The root-config registers micro frontends and starts single-spa
+    5. Single-spa evaluates the URL and mounts the correct micro frontend
+
+  Think of this file as the "bootloader" — it sets up the module system
+  and hands control to the root-config JavaScript.
+  =============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Single-Spa Micro Frontend Demo</title>
+
+  <!--
+    CODE ANNOTATION: SystemJS — the module loader
+    ===============================================
+    SystemJS is a universal module loader that runs in the browser. We need it
+    because:
+      1. Micro frontends are separate bundles served from different URLs/ports
+      2. We need to load them DYNAMICALLY at runtime based on the current route
+      3. We need a way to map friendly names (like 'app-react-home') to actual
+         URLs (like 'http://localhost:8081/app-react-home.js')
+
+    SystemJS provides all of this via its System.import() API and import maps.
+
+    INTERVIEW INSIGHT: "Why not use native ES module imports?"
+    Native `import()` requires the exact URL at the call site. SystemJS adds
+    an indirection layer (import maps) so the root-config can use logical names
+    and the URL resolution happens separately. This is critical for:
+      - Independent deployment (URLs change per environment)
+      - A/B testing (point an app name to a different version's URL)
+      - Canary releases (gradually shift traffic to a new URL)
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/systemjs@6.14.2/dist/system.min.js"></script>
+
+  <!--
+    CODE ANNOTATION: SystemJS extras — import map support
+    ======================================================
+    This addon enables the <script type="systemjs-importmap"> feature below.
+    Without it, SystemJS wouldn't know how to read import maps from the HTML.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/systemjs@6.14.2/dist/extras/amd.min.js"></script>
+
+  <!--
+    CODE ANNOTATION: Import Map — the "package.json" for the browser
+    ==================================================================
+    An import map is a JSON object that maps module names to URLs. It's how
+    SystemJS knows where to find each micro frontend at runtime.
+
+    HOW IT WORKS:
+    When the root-config calls `System.import('app-react-home')`, SystemJS:
+      1. Looks up 'app-react-home' in the import map
+      2. Finds the URL: http://localhost:8081/app-react-home.js
+      3. Fetches that URL
+      4. Executes the module and returns its exports (lifecycle hooks)
+
+    WHY THIS MATTERS FOR MICRO FRONTENDS:
+    - Each micro frontend is served from its OWN dev server (different port)
+    - In production, each URL would point to a CDN path
+    - You can change where a micro frontend is hosted WITHOUT changing any code
+    - You can do blue/green deployments by swapping URLs in the import map
+    - The import map can be served dynamically from an API for runtime flexibility
+
+    INTERVIEW INSIGHT: Import maps are the key to independent deployment.
+    Each team deploys their micro frontend to their own URL. The only shared
+    artifact is this import map, which maps logical names to physical URLs.
+    Some teams serve the import map from a central API so it can be updated
+    without redeploying the shell.
+  -->
+  <script type="systemjs-importmap">
+    {
+      "imports": {
+        "single-spa": "https://cdn.jsdelivr.net/npm/single-spa@5.9.5/lib/system/single-spa.min.js",
+        "react": "https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js",
+        "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js",
+        "app-react-home": "http://localhost:8081/app-react-home.js",
+        "app-react-dashboard": "http://localhost:8082/app-react-dashboard.js"
+      }
+    }
+  </script>
+
+  <style>
+    /*
+      CODE ANNOTATION: Minimal shell styles
+      =======================================
+      The root-config provides only the bare minimum layout. Each micro
+      frontend owns its own styles. This prevents the shell from becoming
+      a styling bottleneck and keeps micro frontends visually independent.
+    */
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /*
+      CODE ANNOTATION: Navigation bar styles
+      ========================================
+      The shell owns the top-level navigation because it owns the routing.
+      This nav bar is the ONLY UI the root-config renders — everything else
+      is delegated to micro frontends. Keeping shell UI minimal reduces the
+      blast radius of shell changes and keeps the shell's deploy cadence
+      independent from micro frontend teams.
+    */
+    .shell-nav {
+      background: #1a1a2e;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      height: 56px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .shell-nav__title {
+      color: #e94560;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 0 24px;
+      white-space: nowrap;
+    }
+
+    .shell-nav__links {
+      display: flex;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    .shell-nav__link {
+      color: #eee;
+      text-decoration: none;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      transition: background 0.2s;
+      font-size: 15px;
+    }
+
+    .shell-nav__link:hover,
+    .shell-nav__link--active {
+      background: rgba(233, 69, 96, 0.15);
+      color: #e94560;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    CODE ANNOTATION: Shell-level navigation bar
+    =============================================
+    This nav bar lives in the shell (root-config), NOT in any micro frontend.
+    This is a deliberate architectural decision:
+
+    WHY THE SHELL OWNS THE NAV:
+      - The shell owns top-level routing (via single-spa's activeWhen)
+      - Navigation links map directly to routes that activate/deactivate
+        micro frontends
+      - If a micro frontend owned the nav, it would need to know about
+        OTHER micro frontends' routes — violating the independence principle
+      - The nav must be visible at ALL times, even during micro frontend
+        transitions
+
+    INTERVIEW INSIGHT: "Should the nav bar be a micro frontend itself?"
+    For small teams, putting it in the shell is fine. For large orgs with
+    a dedicated "platform" team, the nav could be a single-spa "utility module"
+    or a separate micro frontend that's always active (activeWhen: () => true).
+    The key question is: who owns the nav's deploy cadence?
+
+    CODE ANNOTATION: How single-spa navigation works
+    ==================================================
+    We use standard <a> tags with onclick handlers that call
+    singleSpaNavigate(). Here's what happens when a user clicks a link:
+
+      1. The onclick handler calls history.pushState() to update the URL
+         (this is what singleSpaNavigate does under the hood)
+      2. Single-spa listens for popstate/pushState events
+      3. Single-spa re-evaluates all registered apps' activeWhen conditions
+      4. Apps whose activeWhen no longer matches get UNMOUNTED:
+         - single-spa calls the app's unmount() lifecycle hook
+         - The app removes its DOM elements from the container
+         - The container is left empty (clean DOM — see Requirement 2.4)
+      5. Apps whose activeWhen NOW matches get MOUNTED:
+         - single-spa calls bootstrap() if this is the first activation
+         - single-spa calls mount() to render the app into the container
+
+    WHY NOT regular <a> tags with href?
+    Regular links cause a full page reload, which defeats the purpose of
+    a single-page application. We need client-side navigation that only
+    changes the URL and lets single-spa handle the rest.
+
+    The singleSpaNavigate() function below is a thin wrapper around
+    history.pushState() that also triggers single-spa's reroute logic.
+  -->
+  <nav class="shell-nav" aria-label="Main navigation">
+    <span class="shell-nav__title">Single-Spa Demo</span>
+    <ul class="shell-nav__links">
+      <li>
+        <a
+          class="shell-nav__link"
+          href="/home"
+          onclick="singleSpaNavigate(event)"
+        >
+          Home
+        </a>
+      </li>
+      <li>
+        <a
+          class="shell-nav__link"
+          href="/dashboard"
+          onclick="singleSpaNavigate(event)"
+        >
+          Dashboard
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!--
+    CODE ANNOTATION: Micro frontend mount point
+    =============================================
+    This is the DOM element where micro frontends render their UI. When
+    single-spa mounts an app, the app receives this container (via customProps)
+    and renders into it. When the app unmounts, it cleans up this container.
+
+    IMPORTANT: Only ONE micro frontend renders here at a time (because our
+    activeWhen paths don't overlap). If you needed multiple apps visible
+    simultaneously (e.g., a sidebar + main content), you'd use multiple
+    containers with different IDs.
+
+    CODE ANNOTATION: DOM cleanup on unmount (Requirement 2.4)
+    ==========================================================
+    When single-spa unmounts a micro frontend, the app's unmount() hook is
+    responsible for cleaning up the DOM. For React apps using single-spa-react,
+    this means calling ReactDOM.unmountComponentAtNode() (React 17) or root.unmount()
+    (React 18), which removes all React-rendered DOM nodes from this container.
+
+    After unmount completes, this container should have ZERO child elements.
+    If it doesn't, you have a DOM leak — residual markup from a previous app
+    that can cause:
+      - Visual glitches (old UI flashing before new app mounts)
+      - Memory leaks (event listeners on orphaned DOM nodes)
+      - State bugs (new app interacting with old app's DOM)
+
+    The root-config includes a DOM cleanup verifier (in src/index.js) that
+    monitors this container and logs warnings if residual DOM is detected
+    after an unmount. See the 'single-spa:before-mount-routing-event' listener.
+  -->
+  <div id="micro-frontend-container"></div>
+
+  <!--
+    CODE ANNOTATION: Booting the root-config via SystemJS
+    ======================================================
+    This is where everything starts. System.import() loads the root-config
+    bundle (root-config.js, built by webpack). Once loaded, the root-config:
+      1. Calls registerApplication() for each micro frontend
+      2. Calls start() to activate single-spa's routing engine
+      3. Single-spa evaluates the current URL and mounts the matching app
+
+    We use System.import() instead of a regular <script> tag because the
+    root-config is a SystemJS module (libraryTarget: 'system' in webpack config).
+    This keeps everything in the same module system.
+
+    The '@root-config' name doesn't need to be in the import map because
+    we're loading it by its built filename. The import map is only needed
+    for modules loaded by name (like 'app-react-home').
+  -->
+  <!--
+    CODE ANNOTATION: Client-side navigation helper
+    ================================================
+    singleSpaNavigate() is a helper that performs client-side navigation
+    without a full page reload. Here's exactly what it does:
+
+      1. event.preventDefault() — stops the browser from doing a full
+         page navigation (which would reload the entire shell + all assets)
+      2. history.pushState() — updates the browser's URL bar without reloading
+      3. Dispatches a PopStateEvent — this is the KEY part. Single-spa
+         listens for popstate events to know when the URL has changed.
+         history.pushState() alone does NOT fire popstate, so we must
+         dispatch it manually to trigger single-spa's reroute logic.
+
+    After the popstate event fires, single-spa:
+      - Re-evaluates every registered app's activeWhen condition
+      - Unmounts apps that are no longer active (calls their unmount() hook)
+      - Mounts apps that are now active (calls bootstrap() then mount())
+
+    INTERVIEW INSIGHT: "Why dispatch popstate manually?"
+    This is a quirk of the History API. pushState() and replaceState()
+    do NOT fire popstate events — only the browser's back/forward buttons
+    do. Single-spa (and most SPA routers) work around this by either:
+      a) Monkey-patching history.pushState to fire a custom event, or
+      b) Requiring navigation helpers that dispatch popstate manually
+    Single-spa actually does (a) internally, but being explicit here
+    makes the mechanism visible for learning purposes.
+  -->
+  <script>
+    function singleSpaNavigate(event) {
+      // Prevent the browser's default full-page navigation
+      event.preventDefault();
+
+      // Get the target URL from the clicked link's href attribute
+      var href = event.currentTarget.getAttribute('href');
+
+      // Update the URL bar without reloading the page
+      history.pushState(null, '', href);
+
+      // Notify single-spa that the URL has changed so it can
+      // re-evaluate which micro frontends should be active.
+      // This triggers the unmount → mount cycle for route changes.
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  </script>
+
+  <!--
+    CODE ANNOTATION: Active link highlighting
+    ===========================================
+    This script updates the nav bar to visually indicate which route is
+    currently active. It listens for single-spa's routing events to stay
+    in sync with the actual app state (not just the URL).
+
+    We use 'single-spa:routing-event' which fires AFTER single-spa has
+    finished mounting/unmounting apps for a route change. This ensures
+    the visual state matches the actual app state.
+  -->
+  <script>
+    function updateActiveNavLink() {
+      var links = document.querySelectorAll('.shell-nav__link');
+      var currentPath = window.location.pathname;
+
+      links.forEach(function(link) {
+        var href = link.getAttribute('href');
+        if (currentPath.startsWith(href)) {
+          link.classList.add('shell-nav__link--active');
+        } else {
+          link.classList.remove('shell-nav__link--active');
+        }
+      });
+    }
+
+    // Update on initial page load
+    window.addEventListener('DOMContentLoaded', updateActiveNavLink);
+
+    // Update whenever single-spa completes a route transition.
+    // 'single-spa:routing-event' fires after all mount/unmount operations
+    // are complete, so the UI is guaranteed to be in its final state.
+    window.addEventListener('single-spa:routing-event', updateActiveNavLink);
+  </script>
+
+  <script>
+    System.import('./root-config.js');
+  </script>
+</body>
+</html>

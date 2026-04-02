@@ -1,15 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import singleSpaReact from 'single-spa-react';
-import App from './App';
+import Root from './root.component';
 
 const lifecycles = singleSpaReact({
   React,
   ReactDOM,
-  rootComponent: App,
+  rootComponent: Root,
   errorBoundary(err, info, props) {
     return React.createElement('div', { style: { padding: '2rem', color: '#c62828' } },
-      React.createElement('h2', null, '⚠️ Settings App Error'),
+      React.createElement('h2', null, '⚠️ Home App Error'),
       React.createElement('p', null, err.message)
     );
   },

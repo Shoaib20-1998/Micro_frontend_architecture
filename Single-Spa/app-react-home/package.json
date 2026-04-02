@@ -1,0 +1,23 @@
+{
+  "name": "app-react-home",
+  "version": "1.0.0",
+  "description": "Home micro frontend for the Single-Spa architecture. This is an independently deployable React application that exports single-spa lifecycle hooks (bootstrap, mount, unmount). It does NOT run as a standalone app — it's loaded and orchestrated by the root-config shell at runtime via SystemJS.",
+  "scripts": {
+    "start": "webpack serve --mode development --port 8081",
+    "build": "webpack --mode production"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "single-spa-react": "^5.1.4"
+  },
+  "devDependencies": {
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1",
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "babel-loader": "^9.1.3"
+  }
+}

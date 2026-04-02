@@ -61,7 +61,7 @@ Build three working micro-frontend implementations (Single-Spa, Module Federatio
     - Create `src/App.js` that uses `React.lazy()` to load remote components, wrapped in `<Suspense>` and `<ErrorBoundary>`
     - _Requirements: 3.1, 3.2, 3.4, 3.5_
 
-  - [ ] 3.2 Create the Products remote app
+  - [x] 3.2 Create the Products remote app
     - Initialize `ModuleFederation/remote-products/` with `package.json`
     - Create `webpack.config.js` with `ModuleFederationPlugin` — `exposes: { './ProductList': './src/ProductList' }`, `shared: { react: { singleton: true } }`
     - Create `src/ProductList.js` — a React component with sample product data

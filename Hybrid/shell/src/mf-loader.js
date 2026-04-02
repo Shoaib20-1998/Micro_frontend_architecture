@@ -126,74 +126,14 @@
  */
 export function loadMFApp(remoteName, modulePath) {
   return async () => {
-    /**
-     * CODE ANNOTATION: The dynamic import — where Module Federation magic happens
-     * ---------------------------------------------------------------------------
-     * This import() call looks like a normal dynamic import, but webpack
-     * transforms it at build time into a Module Federation remote load:
-     *
-     *   1. Webpack sees import(`${remoteName}/${modulePath}`)
-     *   2. It recognizes `remoteName` as a declared remote (from webpack.config.js)
-     *   3. At runtime, webpack's MF runtime:
-     *      a. Checks if the remote's container (remoteEntry.js) is already loaded
-     *      b. If not, injects a <script> tag to fetch it from the remote's URL
-     *      c. Calls container.init() to share dependencies (React, etc.)
-     *      d. Calls container.get(`./${modulePath}`) to get the specific module
-     *      e. Executes the module factory and returns the exports
-     *
-     * The result is a module that exports { bootstrap, mount, unmount } —
-     * exactly what single-spa needs.
-     *
-     * IMPORTANT: The template literal `${remoteName}/${modulePath}` is resolved
-     * at BUILD TIME by webpack, not at runtime. Webpack needs to know the remote
-     * name statically to set up the container loading logic. If you need truly
-     * dynamic remotes (not known at build time), you'd need webpack's dynamic
-     * remote loading pattern (more advanced, not covered here).
-     *
-     * WHY NOT just use a static import path like import('mfHome/singleSpaEntry')?
-     * We COULD, but using parameters makes loadMFApp reusable. Each
-     * registerApplication() call passes different remote names and module paths,
-     * and this one function handles them all.
-     *
-     * CAVEAT: Because webpack resolves remote names at build time, the
-     * remoteName parameter must match a key in the webpack.config.js `remotes`
-     * config. You can't pass an arbitrary string at runtime.
-     */
-    const module = await import(/* webpackIgnore: false */ `${remoteName}/${modulePath}`);
-
-    /**
-     * CODE ANNOTATION: What the remote module must export
-     * ----------------------------------------------------
-     * The imported module MUST export single-spa lifecycle hooks:
-     *
-     *   {
-     *     bootstrap: async (props) => { ... },  // Called once, on first load
-     *     mount: async (props) => { ... },       // Called each time the app activates
-     *     unmount: async (props) => { ... },     // Called when navigating away
-     *   }
-     *
-     * In the Hybrid remotes (mf-home, mf-settings), these hooks are created
-     * by wrapping a React component with single-spa-react:
-     *
-     *   import singleSpaReact from 'single-spa-react';
-     *   const lifecycles = singleSpaReact({ React, ReactDOM, rootComponent: App });
-     *   export const { bootstrap, mount, unmount } = lifecycles;
-     *
-     * This is the "dual nature" of Hybrid micro frontends — they're Module
-     * Federation remotes (exposing modules via MF) AND single-spa apps
-     * (exporting lifecycle hooks). The mf-loader bridge is what makes this
-     * dual nature work seamlessly.
-     *
-     * CODE ANNOTATION: Why return the module directly?
-     * --------------------------------------------------
-     * Single-Spa expects the app loading function to resolve to an object
-     * with { bootstrap, mount, unmount }. The remote module already exports
-     * these, so we just return it directly. No transformation needed.
-     *
-     * If the remote module used a default export instead of named exports,
-     * we'd need: return module.default || module;
-     * But by convention, single-spa lifecycle modules use named exports.
-     */
+    let module;
+    if (remoteName === 'mfHome') {
+      module = await import('mfHome/singleSpaEntry');
+    } else if (remoteName === 'mfSettings') {
+      module = await import('mfSettings/singleSpaEntry');
+    } else {
+      throw new Error(`Unknown remote: ${remoteName}`);
+    }
     return module;
   };
 }
