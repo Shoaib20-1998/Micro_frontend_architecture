@@ -430,3 +430,114 @@ Mitigation: Don't store sensitive data in globally accessible locations. Use `ht
 Mitigation: Use explicit `requiredVersion` ranges and `strictVersion: true` for critical dependencies. Audit shared scope contents in development.
 
 The bottom line: Module Federation assumes trust between containers. It's designed for micro frontends owned by teams within the same organization, not for loading arbitrary third-party code. If you need to load untrusted code, use iframes with `sandbox` attributes instead.
+
+
+---
+
+## Interview Question: "Walk me through how you would set up micro frontends using Module Federation"
+
+**Model Answer (keep it conversational):**
+
+"I'd set it up in 4 steps:
+
+**Step 1 — Create the host app**
+
+The host is the main app that users visit. It's a normal React app with one special addition: the `ModuleFederationPlugin` in webpack config that declares which remote apps it wants to consume.
+
+```js
+// host-app/webpack.config.js
+new ModuleFederationPlugin({
+  name: 'hostApp',
+  remotes: {
+    products: 'products@http://localhost:3001/remoteEntry.js',
+    cart: 'cart@http://localhost:3002/remoteEntry.js',
+  },
+  shared: {
+    react: { singleton: true },
+    'react-dom': { singleton: true },
+  },
+})
+```
+
+The host uses `React.lazy()` to load remote components — from the host's perspective, it's just a dynamic import:
+
+```jsx
+const ProductList = React.lazy(() => import('products/ProductList'));
+const Cart = React.lazy(() => import('cart/Cart'));
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <ProductList />
+        <Cart />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+```
+
+**Step 2 — Create each remote app**
+
+Each remote is a separate webpack build with its own `ModuleFederationPlugin` that declares what it exposes:
+
+```js
+// remote-products/webpack.config.js
+new ModuleFederationPlugin({
+  name: 'products',
+  filename: 'remoteEntry.js',
+  exposes: {
+    './ProductList': './src/ProductList',
+  },
+  shared: {
+    react: { singleton: true },
+    'react-dom': { singleton: true },
+  },
+})
+```
+
+The exposed component is just a normal React component — nothing special about it. Module Federation handles the loading transparently.
+
+**Step 3 — The async boundary pattern**
+
+Every app (host AND remotes) needs this entry pattern:
+
+```js
+// index.js
+import('./bootstrap');  // one line — creates async boundary
+
+// bootstrap.js  
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+```
+
+This gives Module Federation time to negotiate shared dependencies before any React code runs. Without it, each app bundles its own React.
+
+**Step 4 — Deploy independently**
+
+Each remote deploys its own `remoteEntry.js` to its own URL (CDN, S3, etc.). The host points to those URLs. When the products team deploys a new version, the host automatically gets it on next page load — no host redeploy needed.
+
+---
+
+**Common follow-up questions:**
+
+**Q: How does shared dependency negotiation work?**
+
+When the host loads, it registers its React version in a "shared scope." When it loads a remote's `remoteEntry.js`, it calls `init(sharedScope)` on the remote. The remote checks: "I need React ^18.0.0. Is a compatible version available?" If yes, it reuses the host's copy. If not (and it's not singleton), it loads its own. Result: one React instance shared across all apps.
+
+**Q: What happens if a remote is down?**
+
+The `import()` call rejects, and the React Error Boundary catches it — showing a fallback UI like "This section is temporarily unavailable." Other remotes continue working normally. You can add a retry button that re-attempts the import.
+
+**Q: How is this different from npm packages?**
+
+npm packages are bundled at BUILD TIME — you get a fixed version baked into your bundle. Module Federation loads code at RUNTIME — you always get the latest deployed version. This means teams can deploy independently without coordinating releases.
+
+**Q: Can remotes run standalone?**
+
+Yes. Each remote has its own `index.html`, `bootstrap.js`, and `App.js` so it can run independently on its own port for local development. When consumed by the host, those standalone files are never loaded — only `remoteEntry.js` and the exposed modules.
+
+**Q: What are the downsides?**
+
+It's webpack-only (no Vite/Rollup native support yet). No built-in lifecycle management — if you need clean mount/unmount hooks, you'd pair it with Single-Spa (the Hybrid approach). And debugging shared dep issues can be tricky — if two apps declare inconsistent `shared` configs, you get subtle runtime errors."

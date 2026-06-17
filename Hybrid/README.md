@@ -628,3 +628,117 @@ We could start with pure Module Federation (simpler) and add single-spa later. B
 7. Set up integration tests that compose the shell with all remotes in CI
 
 The Hybrid approach's upfront complexity pays off at this scale. The 12th micro frontend is as easy to add as the 2nd — copy the template, change the name and port, write the UI, register in the shell.
+
+
+---
+
+## Interview Question: "Walk me through how you would set up micro frontends using the Hybrid approach"
+
+**Model Answer (keep it conversational):**
+
+"The Hybrid approach combines Single-Spa for lifecycle orchestration with Module Federation for code loading. I'd set it up in 5 steps:
+
+**Step 1 — Create the shell app**
+
+The shell combines Single-Spa's routing with Module Federation's remotes config:
+
+```js
+// shell/webpack.config.js
+new ModuleFederationPlugin({
+  name: 'shell',
+  remotes: {
+    mfHome: 'mfHome@http://localhost:4001/remoteEntry.js',
+    mfSettings: 'mfSettings@http://localhost:4002/remoteEntry.js',
+  },
+  shared: {
+    react: { singleton: true },
+    'react-dom': { singleton: true },
+    'single-spa': { singleton: true },
+  },
+})
+```
+
+**Step 2 — Create the mf-loader bridge**
+
+This is the key piece — a small function that connects Single-Spa and Module Federation:
+
+```js
+// shell/src/mf-loader.js
+export function loadMFApp(remoteName) {
+  return async () => {
+    const module = await import(`${remoteName}/singleSpaEntry`);
+    return module; // { bootstrap, mount, unmount }
+  };
+}
+```
+
+Single-Spa calls this when a route matches. Module Federation loads the code. The bridge connects them.
+
+**Step 3 — Register apps using the bridge**
+
+```js
+// shell/src/bootstrap.js
+import { registerApplication, start } from 'single-spa';
+import { loadMFApp } from './mf-loader';
+
+registerApplication({
+  name: 'mf-home',
+  app: loadMFApp('mfHome'),
+  activeWhen: ['/home'],
+});
+
+registerApplication({
+  name: 'mf-settings',
+  app: loadMFApp('mfSettings'),
+  activeWhen: ['/settings'],
+});
+
+start();
+```
+
+**Step 4 — Create each micro frontend with dual nature**
+
+Each micro frontend is both a Module Federation remote AND a Single-Spa app. It exposes a lifecycle module:
+
+```js
+// mf-home/webpack.config.js
+new ModuleFederationPlugin({
+  name: 'mfHome',
+  filename: 'remoteEntry.js',
+  exposes: { './singleSpaEntry': './src/single-spa-entry' },
+  shared: { react: { singleton: true }, 'react-dom': { singleton: true } },
+})
+
+// mf-home/src/single-spa-entry.js
+import singleSpaReact from 'single-spa-react';
+const lifecycles = singleSpaReact({ React, ReactDOM, rootComponent: App });
+export const { bootstrap, mount, unmount } = lifecycles;
+```
+
+**Step 5 — Deploy independently**
+
+Same as Module Federation — each remote deploys its `remoteEntry.js` independently. The shell just needs the URL. No SystemJS, no import maps, automatic dependency sharing.
+
+---
+
+**Common follow-up questions:**
+
+**Q: Why use both? Why not just Single-Spa or just Module Federation?**
+
+Single-Spa alone uses SystemJS for loading — no built-in dependency sharing. You'd load React N times without manual CDN configuration. Module Federation alone has no lifecycle management — no clean mount/unmount, no centralized error handling. The Hybrid gives you Module Federation's sharing + Single-Spa's lifecycle control.
+
+**Q: What's the mf-loader bridge doing exactly?**
+
+It translates between two APIs. Single-Spa expects a function that returns `{ bootstrap, mount, unmount }`. Module Federation provides `import('remote/module')`. The bridge does the import and returns the lifecycle hooks to Single-Spa. It's 5 lines of code but it's the glue that makes both systems work together.
+
+**Q: How would you migrate a monolith to this setup?**
+
+Strangler fig pattern. First, wrap the monolith as a Single-Spa app (it's always active). Then extract one feature at a time into new Hybrid micro frontends. The shell routes between the shrinking monolith and the growing micro frontends. Each extraction is independent — no big bang.
+
+**Q: What happens when a remote is down?**
+
+The `import()` in the bridge rejects. Single-Spa catches this and fires the error handler — the app enters LOAD_ERROR state. Other apps keep working. You can add retry logic in the error handler.
+
+**Q: When would you NOT use the Hybrid approach?**
+
+For small apps (2-3 pages) — the complexity isn't worth it. If all you need is component-level sharing without lifecycle management, plain Module Federation is simpler. If your micro frontends use different frameworks (React + Angular), Single-Spa's framework adapters are better suited without the MF layer."

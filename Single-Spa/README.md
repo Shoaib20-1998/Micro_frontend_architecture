@@ -399,3 +399,91 @@ Other teams start extracting their features into micro frontends. Each extractio
 When the last feature is extracted, the Angular micro frontend is deregistered. The monolith is gone, replaced by a collection of independently deployed micro frontends.
 
 Key principles: never freeze feature development during migration, always keep the application working (users don't notice the migration), and let teams migrate at their own pace. The strangler fig pattern works because it's incremental and reversible — if a micro frontend extraction goes wrong, you can route back to the monolith.
+
+
+---
+
+## Interview Question: "Walk me through how you would set up micro frontends using Single-Spa"
+
+**Model Answer (keep it conversational):**
+
+"I'd set it up in 4 steps:
+
+**Step 1 — Create the shell app (root-config)**
+
+This is the orchestrator. It's a tiny app that does just two things: registers micro frontends and starts single-spa's routing engine. It has an HTML page with SystemJS loaded from CDN, an import map that maps app names to URLs, and a JavaScript file that calls `registerApplication()` for each micro frontend.
+
+```js
+// root-config/src/index.js
+import { registerApplication, start } from 'single-spa';
+
+registerApplication({
+  name: 'app-products',
+  app: () => System.import('app-products'),
+  activeWhen: ['/products'],
+});
+
+start();
+```
+
+The import map in HTML tells SystemJS where each app lives:
+```json
+{
+  "imports": {
+    "app-products": "http://localhost:8081/app-products.js",
+    "react": "https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"
+  }
+}
+```
+
+**Step 2 — Create each micro frontend**
+
+Each micro frontend is a separate React app (or Angular, Vue — any framework) with its own repo, its own build, its own deploy pipeline. The key difference from a normal app: it doesn't render itself. Instead, it exports three lifecycle hooks that single-spa calls:
+
+```js
+// app-products/src/app-name.js
+import singleSpaReact from 'single-spa-react';
+
+const lifecycles = singleSpaReact({
+  React, ReactDOM,
+  rootComponent: App,
+});
+
+export const bootstrap = lifecycles.bootstrap;  // called once
+export const mount = lifecycles.mount;          // called on route match
+export const unmount = lifecycles.unmount;      // called on route leave
+```
+
+Webpack outputs it as a SystemJS module (`libraryTarget: 'system'`) and marks `react`/`react-dom` as externals so they're shared via the import map.
+
+**Step 3 — Handle shared dependencies**
+
+React and ReactDOM are loaded once from CDN via the import map. Every micro frontend marks them as `externals` in webpack config so they don't bundle their own copy. This gives you one React instance across all apps — critical for hooks to work.
+
+**Step 4 — Deploy independently**
+
+Each micro frontend gets its own CI/CD pipeline. When Team A deploys their app, they update their bundle at their URL. The shell's import map points to that URL. No other team needs to redeploy. To update the import map in production, you can serve it from an API so it's dynamic.
+
+---
+
+**Common follow-up questions:**
+
+**Q: What happens when you navigate between micro frontends?**
+
+Single-spa listens for URL changes. When the URL changes from `/products` to `/cart`, it calls `unmount()` on the products app (React removes its DOM) and then calls `mount()` on the cart app (React renders into the container). The transition is seamless — no page reload.
+
+**Q: How do micro frontends communicate with each other?**
+
+Three common patterns: custom browser events (loosest coupling, fire-and-forget), a shared event bus (pub/sub with error isolation), or a shared state store (like a mini Redux that all apps can read/write). I'd pick based on the use case — events for notifications, store for shared state like auth.
+
+**Q: What if one micro frontend crashes?**
+
+Each app has its own error boundary. If products crashes, the shell shows a fallback UI for that section while the nav and other apps continue working. Single-spa also has `addErrorHandler()` for catching lifecycle failures globally.
+
+**Q: How do you handle CSS conflicts?**
+
+CSS Modules (build-time class name scoping), Shadow DOM (browser-enforced isolation), or BEM with app prefixes (naming convention). I'd use CSS Modules as the default since it's zero-runtime-cost and enforced by the bundler.
+
+**Q: What are the downsides of Single-Spa?**
+
+It uses SystemJS which is an extra dependency. Shared deps are managed manually via import maps. And it's route-level composition — if you need to embed a component from Team A inside Team B's page, you'd need parcels (more complex). For component-level sharing, Module Federation is better."

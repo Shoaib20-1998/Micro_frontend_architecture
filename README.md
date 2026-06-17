@@ -92,6 +92,20 @@ Suggested approach:
 4. Try breaking things (stop a remote, change a port) and see what happens
 5. Review the interview questions and practice answering out loud
 
+## All Documentation Files
+
+| File | What It Covers |
+|------|---------------|
+| [`Single-Spa/README.md`](Single-Spa/README.md) | Single-Spa approach, foundational concepts, interview prep |
+| [`ModuleFederation/README.md`](ModuleFederation/README.md) | Module Federation runtime mechanics, shared deps, interview prep |
+| [`Hybrid/README.md`](Hybrid/README.md) | Hybrid approach, mf-loader bridge, migration strategies, interview prep |
+| [`docs/communication/README.md`](docs/communication/README.md) | Custom events, event bus, shared store patterns |
+| [`docs/routing/README.md`](docs/routing/README.md) | Shell-level vs app-level routing strategies |
+| [`docs/css-isolation/README.md`](docs/css-isolation/README.md) | CSS Modules, Shadow DOM, BEM prefix techniques |
+| [`docs/shared-deps/README.md`](docs/shared-deps/README.md) | Singleton, version range, eager loading strategies |
+| [`docs/testing/README.md`](docs/testing/README.md) | Unit, integration, E2E testing for micro frontends |
+| [`docs/interview-guide/README.md`](docs/interview-guide/README.md) | Decision matrix, 10+ scenario questions, cheat sheet |
+
 ## Tech Stack
 
 - React 18
